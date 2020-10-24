@@ -25,8 +25,8 @@
     TString file_name_data_for_time_shift_str, file_name_data_analysis_str, file_name_data_simulation_str;
     TString variable_name_default_str, variable_parameter_default_str;
     string temp;
-    bool flag_display_times_shift, flag_display_raw_data, flag_display_spot_dose, flag_display_cumulated_dose,
-        flag_display_simulated_TRD, flag_noise_cancel;
+    bool flag_display_times_shift, flag_display_raw_data, flag_display_spot_dose, flag_display_cumulative_dose,
+        flag_display_simulated_TRD, flag_noise_cancel, flag_display_noise_cancel, flag_display_spot_dividing;
     int no_spot_in_pattern;
     int i1, i2;
     double variable_value_default, calibaration_factor_V_to_Gy = 0;
@@ -69,6 +69,20 @@
                 else
                     flag_display_spot_dose = true;
             }
+            if (variable_name_default_str == "display_noise_cancel")
+            {
+                if (variable_parameter_default_str.Atoi() == 0)
+                    flag_display_noise_cancel = false;
+                else
+                    flag_display_noise_cancel = true;
+            }
+            if (variable_name_default_str == "display_spot_dividing")
+            {
+                if (variable_parameter_default_str.Atoi() == 0)
+                    flag_display_spot_dividing = false;
+                else
+                    flag_display_spot_dividing = true;
+            }
             if (variable_name_default_str == "display_raw_data")
             {
                 if (variable_parameter_default_str.Atoi() == 0)
@@ -76,12 +90,12 @@
                 else
                     flag_display_raw_data = true;
             }
-            if (variable_name_default_str == "display_cumulated_dose")
+            if (variable_name_default_str == "display_cumulative_dose")
             {
                 if (variable_parameter_default_str.Atoi() == 0)
-                    flag_display_cumulated_dose = false;
+                    flag_display_cumulative_dose = false;
                 else
-                    flag_display_cumulated_dose = true;
+                    flag_display_cumulative_dose = true;
             }
             if (variable_name_default_str == "display_simulated_TRD")
             {
@@ -98,7 +112,7 @@
             {
                 calibaration_factor_V_to_Gy = variable_parameter_default_str.Atof();
             }
-            if (variable_name_default_str == "noise_cancelation")
+            if (variable_name_default_str == "noise_cancel")
             {
                 if (variable_parameter_default_str.Atoi() == 0)
                     flag_noise_cancel = false;
@@ -140,8 +154,8 @@
         TRD_noise_calc_bin1_f[max_bins_const / 100], time_noise_calc_bin1_f[max_bins_const / 100],
         sampling_time_f,
         time_base_calc = 0.15, base_DSN = 0, base_TRD = 0, max_TRD = -20, max_DSN = -20,
-        time_avg_calc = 0.3, delay_avg_calc = 0.01, avg_DSN = 0, avg_TRD = 0;
-    int no_points_branch, processing_baseline_calc, no_baseline_calc,
+        time_avg_calc = 0.3, time_noise_calc = 0.15, delay_avg_calc = 0.01, avg_DSN = 0, avg_TRD = 0;
+    int no_points_branch, processing_baseline_calc, no_baseline_calc, no_noise_calc,
         processing_avg_calc, no_avg_calc, bin_no_center_IRR_start;
     tree_time_shift->SetBranchAddress(branch_name_Time_c, &time_f);
     tree_time_shift->SetBranchAddress(branch_name_DSN_c, &DSN_f);
@@ -376,10 +390,11 @@
     no_points_branch = tree_analysis->GetEntries();
 
     //////////
-    // noise cancelation
+    // noise cancel
     //////////
     if (flag_noise_cancel)
     {
+        no_noise_calc = int(time_noise_calc / sampling_time_f);
         processing_baseline_calc = 0;
         for (int i = 0; i < no_points_branch; i++)
         {
@@ -392,7 +407,7 @@
             PSNY_bin1_f[i] = PSNY_f;
             if (DSN_bin1_f[i] < 0.1)
             {
-                if (processing_baseline_calc < 1.0 * no_baseline_calc)
+                if (processing_baseline_calc < 1.0 * no_noise_calc)
                 {
                     processing_baseline_calc++;
                     TRD_noise_bin1_f[i] = TRD_bin1_f[i];
@@ -414,18 +429,20 @@
                 i2++;
             }
             i1++;
-        } while (i1 < no_baseline_calc);
+        } while (i1 < no_noise_calc);
         TCanvas *canv_noise = new TCanvas("noise", "Shape of noise", canvasWidth, canvasHeight);
         TGraph *gr_TRD_noise = new TGraph(int(i2 / bins_sum_noise), time_noise_calc_bin1_f, TRD_noise_calc_bin1_f);
         gr_TRD_noise->Draw();
-        TF1 *noise_func = new TF1("noise_func", "[0]*sin(TMath::TwoPi()*50.05*(x+[1]))", time_noise_calc_bin1_f[2], time_noise_calc_bin1_f[int(i2 / bins_sum_noise) - 3]);
+        TF1 *noise_func = new TF1("noise_func", "[0]*sin(TMath::TwoPi()*(50.0+[2])*(x+[1]))", time_noise_calc_bin1_f[2], time_noise_calc_bin1_f[int(i2 / bins_sum_noise) - 3]);
         noise_func->SetParLimits(0, 0.012, 0.025);
         noise_func->SetParLimits(1, 0, TMath::TwoPi());
+        noise_func->SetParLimits(2, -0.1, 0.1);
         gr_TRD_noise->Fit(noise_func, "RM");
-        double noise_par0 = noise_func->GetParameter(0), noise_par1 = noise_func->GetParameter(1);
-        TF1 *noise_cancel_func = new TF1("noise_cancel_func", "[0]*cos(TMath::TwoPi()*50.05*(x+[1]))");
+        double noise_par0 = noise_func->GetParameter(0), noise_par1 = noise_func->GetParameter(1), noise_par2 = noise_func->GetParameter(2) + 50;
+        TF1 *noise_cancel_func = new TF1("noise_cancel_func", "[0]*cos(TMath::TwoPi()*[2]*(x+[1]))");
         noise_cancel_func->SetParameter(0, noise_par0);
         noise_cancel_func->SetParameter(1, noise_par1);
+        noise_cancel_func->SetParameter(2, noise_par2);
         noise_cancel_func->Draw("SAME");
     }
     //////
@@ -561,13 +578,16 @@
             noise_cancel_bin1_d[i - 1] = +1 / (100 * twopi * 1.15) * (-noise_cancel_func->Eval(spot_data_bin2_d[0][i]) + noise_cancel_func->Eval(spot_data_bin2_d[0][i - 1])) / sampling_time_f;
             spot_data_bin2_d[3][i - 1] += -noise_cancel_bin1_d[i - 1]; //+1 / 2 / (50 * twopi) * (-noise_cancel_func->Eval(spot_data_bin2_d[0][i]) + noise_cancel_func->Eval(spot_data_bin2_d[0][i - 1])) / sampling_time_f;
         }
-        TCanvas *testCanv = new TCanvas();
-        TGraph *gr1 = new TGraph(no_spot_in_pattern, spot_data_bin2_d[0], spot_data_bin2_d[3]);
-        TGraph *gr2 = new TGraph(no_spot_in_pattern, spot_data_bin2_d[0], noise_cancel_bin1_d);
-        gr1->Draw();
-        // gr2->SetMarkerColor(kRed);
-        gr2->SetLineColor(kRed);
-        gr2->Draw("LSAME");
+        if (flag_display_noise_cancel)
+        {
+            TCanvas *testCanv = new TCanvas("noisecanceling", "noise cancel", canvasWidth, canvasHeight);
+            TGraph *gr1 = new TGraph(no_spot_in_pattern, spot_data_bin2_d[0], spot_data_bin2_d[3]);
+            TGraph *gr2 = new TGraph(no_spot_in_pattern, spot_data_bin2_d[0], noise_cancel_bin1_d);
+            gr1->Draw();
+            // gr2->SetMarkerColor(kRed);
+            gr2->SetLineColor(kRed);
+            gr2->Draw("LSAME");
+        }
     }
     TString spot_result_file_name = "result" + file_name_data_analysis_str + ".txt";
     ofstream ofs_result_spot("result" + file_name_data_analysis_str + ".txt");
@@ -584,10 +604,9 @@
     {
         float TRD_divided_point_bin1_f[max_bins_const / 100], TRD_divided_time_bin1_f[max_bins_const / 100];
         float ymin_TRD_raw = -1, ymax_TRD_raw = 6, scaling_TRD_PSN = 12, xmin_TRD_raw = 0.5, xmax_TRD_raw = 1.3;
-        TCanvas *canv_raw_data = new TCanvas("canv_spot_dividing", "Spot dividing", canvasWidth, canvasHeight);
+        TCanvas *canv_raw_data = new TCanvas("canv_spot_dividing", "Raw output", canvasWidth, canvasHeight);
         canv_raw_data->cd();
         TGraph *gr_TRD_raw = new TGraph(no_points_branch, time_bin1_f, TRD_bin1_f);
-        gr_TRD_raw->SetTitle("Spot dividing");
         TGraph *gr_PSNX_raw = new TGraph(no_points_branch, time_bin1_f, PSNX_bin1_f);
         TGraph *gr_PSNY_raw = new TGraph(no_points_branch, time_bin1_f, PSNY_bin1_f);
         for (int i = 0; i < no_points_branch; i++)
@@ -601,7 +620,8 @@
             TRD_divided_point_bin1_f[i] = gr_PSNX_raw->Eval(spot_data_bin2_d[0][i]);
         }
         TGraph *gr_divide_point = new TGraph(no_spot, TRD_divided_time_bin1_f, TRD_divided_point_bin1_f);
-        gr_TRD_raw->GetYaxis()->SetRangeUser(ymin_TRD_raw, ymax_TRD_raw);
+        if (flag_display_spot_dividing)
+            gr_TRD_raw->GetYaxis()->SetRangeUser(ymin_TRD_raw, ymax_TRD_raw);
         gr_TRD_raw->GetXaxis()->SetRangeUser(xmin_TRD_raw, xmax_TRD_raw);
         gr_TRD_raw->GetYaxis()->SetNdivisions(505);
         gr_TRD_raw->GetXaxis()->SetNdivisions(505);
@@ -609,7 +629,6 @@
         gr_TRD_raw->GetYaxis()->SetTitle("TRD output [V]");
         gr_TRD_raw->Draw("AL");
         gr_PSNX_raw->SetLineColor(kGreen + 1);
-        gr_PSNX_raw->Draw("SAME");
         TGaxis *axis_PSN = new TGaxis(xmax_TRD_raw, ymin_TRD_raw, xmax_TRD_raw, ymax_TRD_raw, ymin_TRD_raw / scaling_TRD_PSN + 2, ymax_TRD_raw / scaling_TRD_PSN + 2, 505, "+L");
         axis_PSN->SetLabelColor(kGreen + 2);
         axis_PSN->SetLineColor(kGreen + 2);
@@ -619,16 +638,22 @@
         axis_PSN->SetTitleFont(42);
         axis_PSN->SetLabelFont(42);
         axis_PSN->SetTitleSize(0.05);
-        axis_PSN->Draw();
         gr_divide_point->SetMarkerStyle(2);
         gr_divide_point->SetMarkerSize(1);
         gr_divide_point->SetMarkerColor(kRed);
-        gr_divide_point->Draw("PSAME");
         TLegend *leg_divide_point = new TLegend(0.63, 0.75, 0.91, 0.91);
         leg_divide_point->AddEntry(gr_TRD_raw, "TRD output");
-        leg_divide_point->AddEntry(gr_PSNX_raw, "Position monitor (X)", "l");
-        leg_divide_point->AddEntry(gr_divide_point, "Spot dividing point", "p");
-        leg_divide_point->Draw();
+
+        if (flag_display_spot_dividing)
+        {
+            gr_TRD_raw->SetTitle("Spot dividing");
+            gr_PSNX_raw->Draw("SAME");
+            axis_PSN->Draw();
+            gr_divide_point->Draw("PSAME");
+            leg_divide_point->AddEntry(gr_PSNX_raw, "Position monitor (X)", "l");
+            leg_divide_point->AddEntry(gr_divide_point, "Spot dividing point", "p");
+            leg_divide_point->Draw();
+        }
         //        TGraph * gr_DSN_raw = new TGraph(no_points_branch, time_bin1_f, DSN_bin1_f);
     }
     if (flag_display_spot_dose)
@@ -666,7 +691,7 @@
         TLegend *leg_Integrated_dose = new TLegend(0.63, 0.75, 0.91, 0.91);
         leg_Integrated_dose->AddEntry(gr_spot_dose, "Spot Dose", "l");
 
-        if (flag_display_cumulated_dose)
+        if (flag_display_cumulative_dose)
         {
             gr_Integrated_Dose->SetLineColor(kGreen + 1);
             gr_Integrated_Dose->SetLineWidth(3);
@@ -681,7 +706,7 @@
             axis_Integrated_dose->SetLabelFont(42);
             axis_Integrated_dose->SetTitleSize(0.05);
             axis_Integrated_dose->Draw();
-            leg_Integrated_dose->AddEntry(gr_Integrated_Dose, "Cumulated Dose", "l");
+            leg_Integrated_dose->AddEntry(gr_Integrated_Dose, "Cumulative Dose", "l");
         }
         if (flag_display_simulated_TRD)
         {
