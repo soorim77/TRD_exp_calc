@@ -12,6 +12,17 @@
         "AnalysisAllin1_200831.C": "cpp",
         "AnalysisAllin1_201003.C": "cpp",
         "AnalysisAllin1_201004.C": "cpp",
-        "AnalysisAllin1_201005.C": "cpp"
+        "AnalysisAllin1_201005.C": "cpp",
+        "AnalysisAllin1_201024.C": "cpp",
+        "tree_using_branch.C": "cpp",
+        "LineProfile.C": "cpp",
+        "AnalysisAllin1_201031.C": "cpp",
+        "AnalysisAllin1_201108.C": "cpp",
+        "AnalysisAllin1_201109.C": "cpp",
+        "PresetDoseGraph.C": "cpp",
+        "AnalysisAllin1_201114.C": "cpp",
+        "AnalysisAllin1_201119.C": "cpp",
+        "dose_freq.C": "cpp",
+        "AnalysisAllin1_201205.C": "cpp"
     }
 }
