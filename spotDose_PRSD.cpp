@@ -10,7 +10,7 @@
     gStyle->SetPadRightMargin(0.13);
     gStyle->SetPadLeftMargin(0.13);
     const int canvasWidth = 1200, canvasHeight = 800;
-    TString spot_result_file_name = "result2DUniform_Markus_640k_M80_E9.csv.root.txt";
+    TString spot_result_file_name = "result_hetero_stripe_y_0.4-.csv.root.txt";
     TCanvas *canv_spotIntegration = new TCanvas("canv_spot_dose", "Spot Dose", canvasWidth, canvasHeight);
     double xmin_spot_TRD = 200, xmax_spot_TRD = 425, ymin_spot_TRD = -0.5, ymax_spot_TRD = 10, scaling_spot_CumulSpot = 0.075;
 
@@ -30,6 +30,8 @@
     gr_PRSD->SetTitle("PR-spot dose");
     // gr_spot_dose->SetFillStyle(0);
     gr_PRSD->SetFillStyle(0);
+    for (int i = 0; i < gr_PRSD->GetN() + 1; i++)
+        gr_PRSD->GetY()[i] *= 0.002;
     mg->Add(gr_spot_dose);
     mg->Add(gr_PRSD);
     mg->GetXaxis()->SetRangeUser(xmin_spot_TRD, xmax_spot_TRD);

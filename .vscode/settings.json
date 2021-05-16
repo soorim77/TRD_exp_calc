@@ -23,6 +23,13 @@
         "AnalysisAllin1_201114.C": "cpp",
         "AnalysisAllin1_201119.C": "cpp",
         "dose_freq.C": "cpp",
-        "AnalysisAllin1_201205.C": "cpp"
+        "AnalysisAllin1_201205.C": "cpp",
+        "tree_using_branch_10us.C": "cpp",
+        "tree_using_branch_5to10us.C": "cpp",
+        "AnalysisAllin1_210124.C": "cpp",
+        "SpotDose_201030.C": "cpp",
+        "SpotDose_201028.C": "cpp",
+        "SpotDose_1sigma_201031.C": "cpp",
+        "LineProfile_forJACMP.C": "cpp"
     }
 }
